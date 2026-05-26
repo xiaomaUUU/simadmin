@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react'
+import { type ChangeEvent, useRef } from 'react'
 import {
   Accordion,
   AccordionDetails,
@@ -73,6 +73,29 @@ export default function NotificationRulesTab({
   onPatchRule,
   onSave,
 }: NotificationRulesTabProps) {
+  const textareaRefs = useRef<Record<string, HTMLTextAreaElement | HTMLInputElement | null>>({})
+
+  const insertToken = (ruleId: string, template: string, token: string) => {
+    const currentTemplate = template || ''
+    const el = textareaRefs.current[ruleId]
+    if (!el) {
+      return `${currentTemplate}${currentTemplate ? '\n' : ''}${token}`
+    }
+
+    const start = el.selectionStart ?? currentTemplate.length
+    const end = el.selectionEnd ?? currentTemplate.length
+
+    const nextValue = currentTemplate.slice(0, start) + token + currentTemplate.slice(end)
+
+    setTimeout(() => {
+      el.focus()
+      const newCursorPos = start + token.length
+      el.setSelectionRange(newCursorPos, newCursorPos)
+    }, 0)
+
+    return nextValue
+  }
+
   const isCompact = useMediaQuery<Theme>((theme: Theme) => theme.breakpoints.down('md'))
   const rulesForType = config.rules.filter((rule) => rule.type === selectedEventType)
   const ruleCountForType = (eventType: NotificationEventType) => {
@@ -400,7 +423,10 @@ export default function NotificationRulesTab({
                           size="small"
                           label={variable.label}
                           variant="outlined"
-                          onClick={() => onPatchRule(rule.id, { template: `${rule.template}${rule.template ? '\n' : ''}${variable.token}` })}
+                          onClick={() => {
+                            const nextTemplate = insertToken(rule.id, rule.template, variable.token)
+                            onPatchRule(rule.id, { template: nextTemplate })
+                          }}
                         />
                       ))}
                     </Box>
@@ -409,6 +435,9 @@ export default function NotificationRulesTab({
                       multiline
                       minRows={5}
                       value={rule.template}
+                      inputRef={(el) => {
+                        textareaRefs.current[rule.id] = el
+                      }}
                       onChange={(event: ChangeEvent<HTMLInputElement>) => onPatchRule(rule.id, { template: event.target.value })}
                     />
                     <Button size="small" sx={{ mt: 1 }} onClick={() => onPatchRule(rule.id, { template: DEFAULT_TEMPLATES[rule.type] })}>恢复默认模板</Button>

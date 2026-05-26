@@ -68,6 +68,19 @@ export default function NotificationChannelsTab({
   const disabledChannelCount = config.channels.length - enabledChannelCount
   const selectedChannelTitle = selectedChannel?.name.trim() || selectedChannelDef?.label || '通知通道'
 
+  const [prevChannelId, setPrevChannelId] = useState<string | undefined>(selectedChannel?.id)
+  const [headersText, setHeadersText] = useState(() => {
+    if (selectedChannel && selectedChannel.type === 'webhook') {
+      return headersToText(selectedChannel.config.headers)
+    }
+    return ''
+  })
+
+  if (selectedChannel?.id !== prevChannelId) {
+    setPrevChannelId(selectedChannel?.id)
+    setHeadersText(selectedChannel && selectedChannel.type === 'webhook' ? headersToText(selectedChannel.config.headers) : '')
+  }
+
   const renderStringField = (
     channel: NotificationChannelInstance,
     key: string,
@@ -214,8 +227,12 @@ export default function NotificationChannelsTab({
             {renderStringField(channel, 'secret', '签名密钥', { password: true })}
             <TextField
               label="请求头"
-              value={headersToText(channel.config.headers)}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => onPatchChannelConfig(channel.id, { headers: textToHeaders(event.target.value) })}
+              value={headersText}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                const text = event.target.value
+                setHeadersText(text)
+                onPatchChannelConfig(channel.id, { headers: textToHeaders(text) })
+              }}
               placeholder="Content-Type: text/plain"
               multiline
               minRows={4}
